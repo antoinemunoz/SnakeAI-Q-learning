@@ -13,7 +13,7 @@ class AgentConfig:
     GAMMA = 0.9
     EPSILON = 1
     EPSILON_MIN = 0.01
-    EPSILON_DECAY = 0.995
+    EPSILON_DECAY = 0.99
 
 class Agent:
     def __init__(self):
@@ -89,10 +89,10 @@ class Agent:
             move = torch.argmax(prediction).item()
             final_move[move] = 1
 
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
         return final_move
+
+    def decay_epsilon(self):
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
 def train():
     plot_scores = []
@@ -105,22 +105,23 @@ def train():
     while True:
         state_old = agent.get_state(game)
         final_move = agent.get_action(state_old)
-        reward, done, score = game.play_step(final_move)
+        reward, terminated, truncated, score = game.play_step(final_move)
         state_new = agent.get_state(game)
 
-        agent.train_short_memory(state_old, final_move, reward, state_new, done)
-        agent.remember(state_old, final_move, reward, state_new, done)
+        agent.train_short_memory(state_old, final_move, reward, state_new, terminated)
+        agent.remember(state_old, final_move, reward, state_new, terminated)
 
-        if done:
+        if terminated or truncated:
             game.reset()
             agent.n_games += 1
             agent.train_long_memory()
+            agent.decay_epsilon()
 
             if score > record:
                 record = score
                 agent.model.save()
 
-            print(f'Game {agent.n_games}, Score {score}, Record: {record}')
+            print(f'Game {agent.n_games}, Score {score}, Record: {record}, Epsilon: {agent.epsilon:.3f}')
 
             plot_scores.append(score)
             total_score += score
