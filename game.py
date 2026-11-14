@@ -91,9 +91,6 @@ class SnakeGameAI:
             pt = self.head
         return pt.x > self.w - BLOCK_SIZE or pt.x < 0 or pt.y > self.h - BLOCK_SIZE or pt.y < 0 or pt in self.snake[1:]
 
-    def game_over_condition(self):
-        return self.is_collision() or self.frame_iteration > 100*len(self.snake)
-
     def play_step(self, action):
         self.frame_iteration += 1
         for event in pygame.event.get():
@@ -104,13 +101,10 @@ class SnakeGameAI:
         self.move(action)
         self.snake.insert(0, self.head)
 
-        reward = 0
-        game_over = False
-        if self.game_over_condition():
-            game_over = True
-            reward = -10
-            return reward, game_over, self.score
+        if self.is_collision():
+            return -10, True, False, self.score
 
+        reward = 0
         if self.head == self.food:
             self.score += 1
             reward = 10
@@ -118,7 +112,9 @@ class SnakeGameAI:
         else:
             self.snake.pop()
 
+        truncated = self.frame_iteration > 100*len(self.snake)
+
         self.update_ui()
         self.clock.tick(SPEED)
 
-        return reward, game_over, self.score
+        return reward, False, truncated, self.score
